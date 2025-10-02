@@ -1,0 +1,1 @@
+supported_http_verbs = {"get", "put", "post", "patch", "delete"}

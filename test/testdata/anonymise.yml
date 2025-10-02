@@ -1,0 +1,138 @@
+openapi: 3.0.1
+info:
+  title: API Anonymisee
+  description: API Rest Anonymisee
+  termsOfService: https://www.exemple.com/
+  contact:
+    name: DevTeam
+    url: https://www.exemple.com/
+    email: devteam@exemple.com
+  license:
+    name: DevTeam
+    url: http://srv:8080/exemple
+  version: v1
+paths:
+  /Ouverture/ValiderOuvertureDeCompte:
+    post:
+      tags:
+        - Abonnement
+      parameters:
+        - name: guid
+          in: query
+          schema:
+            type: string
+            nullable: true
+      responses:
+        "200":
+          description: Success
+  /Connexion/ChangerMotDePasse:
+    post:
+      tags:
+        - Connexion
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: "#/components/schemas/ChangerMotDePasse"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangerMotDePasse"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/ChangerMotDePasse"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/ChangerMotDePasse"
+      responses:
+        "200":
+          description: Success
+  /Connexion/DemandeJeton:
+    post:
+      tags:
+        - Connexion
+      parameters:
+        - name: nomAction
+          in: query
+          schema:
+            type: string
+            nullable: true
+        - name: tokenCaptcha
+          in: query
+          schema:
+            type: string
+            nullable: true
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: "#/components/schemas/DemandeJeton"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemandeJeton"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/DemandeJeton"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/DemandeJeton"
+      responses:
+        "200":
+          description: Success
+  /Connexion/DemandeChangerMotDePasse:
+    post:
+      tags:
+        - Connexion
+      parameters:
+        - name: nomAction
+          in: query
+          schema:
+            type: string
+            nullable: true
+        - name: tokenCaptcha
+          in: query
+          schema:
+            type: string
+            nullable: true
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: "#/components/schemas/DemandeChangerMotDePasse"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemandeChangerMotDePasse"
+          text/json:
+            schema:
+              $ref: "#/components/schemas/DemandeChangerMotDePasse"
+          application/*+json:
+            schema:
+              $ref: "#/components/schemas/DemandeChangerMotDePasse"
+      responses:
+        "200":
+          description: Success
+components:
+  schemas:
+    ChangerMotDePasse:
+      type: object
+      properties:
+        token:
+          type: string
+          nullable: true
+        nouveauMotDePasse:
+          type: string
+          nullable: true
+    DemandeJeton:
+      type: object
+      properties:
+        courriel:
+          type: string
+          nullable: true
+    DemandeChangerMotDePasse:
+      type: object
+      properties:
+        accessId:
+          type: string
+          nullable: true
+        courriel:
+          type: string
+          nullable: true
