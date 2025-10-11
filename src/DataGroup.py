@@ -6,9 +6,6 @@ class DataGroup():
     def __init__(self, id) -> None:
         self.id = id
 
-    def get_data_groups():
-        pass
-
     def store_datagroups(schema, file_path = './data/datagroups.yml') -> str:
         datagroups = {}
         data_handler = jdh.JsonDataHandler(file_path)

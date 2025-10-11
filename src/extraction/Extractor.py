@@ -3,13 +3,11 @@ import logging
 
 class Extractor():
 
-    # TODO Should eventually receive a spec object, not a spec_path
     def __init__(self, spec_path):
         self.spec = specification.get_specification(spec_path)       
         self.spec_path = spec_path
 
     def get_metadata() -> list:
-        # TODO Refactor to return api name, desc and url in one method
         """
             Every API definition must include the version of the OpenAPI Specification that this definition is based on:
             1.     openapi: 3.0.0
