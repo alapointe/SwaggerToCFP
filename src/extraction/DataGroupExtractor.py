@@ -7,7 +7,6 @@ class DataGroupExtractor():
     def __init__(self, spec) -> None:
         self.spec = spec
 
-    # TODO Could be simplified by retrurning only a dict of fpid with associated parameters
     def get_parameters(self) -> dict:
         """
             In OpenAPI 3.0, parameters are defined in the parameters section of an operation or path. 
@@ -34,7 +33,7 @@ class DataGroupExtractor():
                         parameters.update({fpid: {"summary" : fpid, "parameters": []}})
                     else:
                         for param_name in http_method_dict["parameters"]:
-                            if "name" in param_name: # TODO Crash si le champ name est absent, l'ajout du if est une patch temporaire
+                            if "name" in param_name: 
                                 params.append(param_name["name"])
                                 params = list(set(params))
                                 parameters.update({fpid: {"summary" : fpid, "parameters": params}})
@@ -147,118 +146,7 @@ class DataGroupExtractor():
         
         return data_model
 
-    # def get_data_model(self) -> dict:
-    #     return self.spec.get_schema()   
-
-    # def get_data_model(self) -> dict:
-    #     expected_model = {}
-    #     input_schema = self.spec.get_schema()
-
-    #     def resolve_props(obj_name, obj_def, visited=None):
-    #         if visited is None:
-    #             visited = set()
-    #         if obj_name in visited:
-    #             return {}
-    #         visited.add(obj_name)
-
-    #         props = {}
-    #         # Gestion allOf
-    #         if 'allOf' in obj_def:
-    #             for bloc in obj_def['allOf']:
-    #                 # Propriétés classiques
-    #                 if 'properties' in bloc:
-    #                     for prop_name, prop_def in bloc['properties'].items():
-    #                         props[prop_name] = resolve_prop(prop_def, visited)
-    #                 # Réf directe sur schéma > Héritage
-    #                 if '$ref' in bloc:
-    #                     ref_name = bloc['$ref'].split('/')[-1]
-    #                     ref_obj_def = input_schema.get(ref_name, {})
-    #                     props.update(resolve_props(ref_name, ref_obj_def, visited))
-    #         else:
-    #             for prop_name, prop_def in obj_def.get('properties', {}).items():
-    #                 props[prop_name] = resolve_prop(prop_def, visited)
-    #         return props
-
-        def resolve_prop(prop_def, visited):
-            if '$ref' in prop_def:
-                ref_name = prop_def['$ref'].split('/')[-1]
-                return {"type": "object", "ref": ref_name, "properties": resolve_props(ref_name, input_schema.get(ref_name, {}), visited)}
-            elif prop_def.get('type') == 'array':
-                items = prop_def.get('items', {})
-                if '$ref' in items:
-                    ref_name = items['$ref'].split('/')[-1]
-                    return {"type": "array", "items": {"type": "object", "ref": ref_name, "properties": resolve_props(ref_name, input_schema.get(ref_name, {}), visited)}}
-                else:
-                    return {"type": "array", "items": {"type": items.get("type", "properties")}}
-            else:
-                return {"type": prop_def.get("type", "properties")}
-
-        for model_name, model_def in input_schema.items():
-            expected_model[model_name] = resolve_props(model_name, model_def)
-
-        return expected_model
-    
-    # def get_data_model(self) -> dict:
-    #     expected_model = {}
-    #     input_schema = self.extractor.get_schema()
-
-    #     for model_name, model_def in input_schema.items():
-    #         properties = {}
-
-    #         # --- Gérer allOf ---
-    #         if 'allOf' in model_def:
-    #             # On fusionne toutes les propriétés et références de chaque sous-bloc allOf
-    #             for bloc in model_def['allOf']:
-    #                 # Sous-partie avec propriétés classiques
-    #                 if 'properties' in bloc:
-    #                     for prop_name, prop_def in bloc['properties'].items():
-    #                         # Cas 1 : Référence à un autre schéma ($ref)
-    #                         if '$ref' in prop_def:
-    #                             ref_path = prop_def['$ref'].split('/')[-1]
-    #                             properties[prop_name] = {"type": "object", "ref": ref_path}
-    #                         # Cas 2 : Tableau (array)
-    #                         elif prop_def.get('type') == 'array':
-    #                             items = prop_def.get('items', {})
-    #                             if '$ref' in items:
-    #                                 ref_path = items['$ref'].split('/')[-1]
-    #                                 items_type = {"type": "object", "ref": ref_path}
-    #                             else:
-    #                                 items_type = {"type": "properties"}
-    #                             properties[prop_name] = {"type": "array", "items": items_type}
-    #                         # Cas 3 : Type primitif
-    #                         else:
-    #                             properties[prop_name] = {"type": "properties"}
-    #                 # Sous-partie référence directe à un autre schéma (allOf + $ref)
-    #                 if '$ref' in bloc:
-    #                     ref_path = bloc['$ref'].split('/')[-1]
-    #                     # Propriété spéciale "allOf_ref" (pour tracer la structure composite)
-    #                     properties.setdefault('allOf_refs', []).append({"type": "object", "ref": ref_path})
-    #         # --- Fin gestion allOf ---
-
-    #         # Traitement classique quand il n'y a pas de allOf à ce niveau
-    #         else:
-    #             for prop_name, prop_def in model_def.get('properties', {}).items():
-    #                 if '$ref' in prop_def:
-    #                     ref_path = prop_def['$ref'].split('/')[-1]
-    #                     properties[prop_name] = {"type": "object", "ref": ref_path}
-    #                 elif prop_def.get('type') == 'array':
-    #                     items = prop_def.get('items', {})
-    #                     if '$ref' in items:
-    #                         ref_path = items['$ref'].split('/')[-1]
-    #                         items_type = {"type": "object", "ref": ref_path}
-    #                     else:
-    #                         items_type = {"type": "properties"}
-    #                     properties[prop_name] = {"type": "array", "items": items_type}
-    #                 else:
-    #                     properties[prop_name] = {"type": "properties"}
-
-    #         expected_model[model_name] = properties
-
-    #     return expected_model
-
     def get_responses_data_model(self) -> dict:
-        # print('ICICICICICICICICICICIIC')
-        # print(self.extractor.get_responses())
         return self.spec.get_responses()
 
     def get_content_objects_per_fp(self):
@@ -316,23 +204,6 @@ class DataGroupExtractor():
                 for item in value:
                     if isinstance(item, dict):
                         self.extract_refs_per_fp(item, new_path, fpid, result)
-        # Ajout des attributs aux schémas référencés
-        # TODO Implement for version 2
-        # for fpid, schemas in result.items():
-        #     print(schemas)
-        #     for schema_name in schemas:
-        #         print(schema_name)
-        #         schema_path = [part for part in current_path if part in ["components", "schemas", schema_name]]
-        #         schema_data = data
-        #         print("schema_data: ")
-        #         print(schema_data)
-        #         for part in schema_path:
-        #             schema_data = schema_data[part]
-        #         if "properties" in schema_data:
-        #             print("schema property")
-        #             print(schema_data["properties"].keys())
-        #             result[fpid][schema_name] = list(schema_data["properties"].keys())
-            # print(result)
         return result
     
     def get_request_body(self, data_model) -> dict:
@@ -343,30 +214,18 @@ class DataGroupExtractor():
             return result
         
         for path, http_method in paths.items():
-            # print("path: " + path)
             for http_method, http_method_dict in http_method.items():
-                # print("http_method : " + http_method)
                 fpid = fpig.generate_fpid(path, http_method, http_method_dict)
                 if 'requestBody' in http_method_dict:
-                    # print("fpid with request_body: " + fpid)
-                    # print(http_method_dict['requestBody']['content'])
                     content =   self.extract_ref(http_method_dict['requestBody']['content'])
                     result.update({fpid : {'Datagroups' : self.get_nested_objects(content, data_model)}})
-                    # print('content')
-                    # print(content)
-                    # print(type(content))
-                    # print('result')
-                    # print(result)
+
                 else:
                     result.update({ fpid : {}})
-        # print("La génèse de request body:")
-        # print(result)
         return result
 
     def get_nested_objects(self, content, data_model):
         nested = set()
-        # print('CONTENT')
-        # print(content)
         nested.add(content)
 
         def find_refs(properties):
