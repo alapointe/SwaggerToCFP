@@ -4,8 +4,8 @@ from utils.functional_process_id_generator import Utils as fpig
 
 class DataGroupExtractor():
 
-    def __init__(self, extractor) -> None:
-        self.extractor = extractor
+    def __init__(self, spec) -> None:
+        self.spec = spec
 
     # TODO Could be simplified by retrurning only a dict of fpid with associated parameters
     def get_parameters(self) -> dict:
@@ -23,7 +23,7 @@ class DataGroupExtractor():
             In the context of this project, all parameters will be returned.
 
         """
-        paths = self.extractor.get_paths()
+        paths = self.spec.get_paths()
         parameters = {}
         for path, http_method in paths.items():
             for http_method, http_method_dict in http_method.items():
@@ -42,132 +42,228 @@ class DataGroupExtractor():
                     parameters.update({fpid: {"summary" : fpid, "parameters": params}})
         return parameters
     
-    # TODO Refactor if necessecary
-    # def get_properties(self) -> list:
-    #     schema = self.extractor.get_schema()
-    #     if "properties" not in schema:
-    #         return []  # No properties found
+    def get_data_model(self, openapi_schemas):
+        """
+        Convertit les schémas OpenAPI complexes au format data_model
+        Gère allOf, propriétés imbriquées, et références multiples
+        """
+        data_model = {}
+        
+        def convert_property(prop_def):
+            """Convertit une propriété OpenAPI en format data_model"""
+            if '$ref' in prop_def:
+                # Référence directe à un autre schéma
+                ref_name = prop_def['$ref'].split('/')[-1]
+                return {'type': 'object', 'ref': ref_name}
+            elif prop_def.get('type') == 'object' and 'properties' in prop_def:
+                # Objet imbriqué avec propriétés
+                nested_props = {}
+                for nested_name, nested_def in prop_def['properties'].items():
+                    nested_props[nested_name] = convert_property(nested_def)
+                return {'type': 'object', 'properties': nested_props}
+            elif prop_def.get('type') == 'array' and 'items' in prop_def:
+                # Tableau
+                items = prop_def['items']
+                if '$ref' in items:
+                    # Tableau d'objets référencés
+                    ref_name = items['$ref'].split('/')[-1]
+                    return {'type': 'array', 'items': {'type': 'object', 'ref': ref_name}}
+                elif items.get('type') == 'object' and 'properties' in items:
+                    # Tableau d'objets avec propriétés définies
+                    item_props = {}
+                    for item_prop_name, item_prop_def in items['properties'].items():
+                        item_props[item_prop_name] = convert_property(item_prop_def)
+                    return {'type': 'array', 'items': {'type': 'object', 'properties': item_props}}
+                else:
+                    # Tableau de primitives
+                    return {'type': 'array', 'items': {'type': 'properties'}}
+            else:
+                # Type primitif (string, integer, boolean, etc.)
+                return {'type': 'properties'}
+        
+        def process_schema(schema_name, schema_def, processed=None):
+            """Traite un schéma et ses dépendances récursivement"""
+            if processed is None:
+                processed = set()
+            if schema_name in processed or schema_name in data_model:
+                return
+            processed.add(schema_name)
+            
+            properties = {}
+            
+            # Gestion des allOf (héritage)
+            if 'allOf' in schema_def:
+                allof_refs = []
+                for bloc in schema_def['allOf']:
+                    if '$ref' in bloc:
+                        # Référence à un parent
+                        ref_name = bloc['$ref'].split('/')[-1]
+                        allof_refs.append({'type': 'object', 'ref': ref_name})
+                        # Traite récursivement le parent
+                        if ref_name in openapi_schemas:
+                            process_schema(ref_name, openapi_schemas[ref_name], processed)
+                    elif 'properties' in bloc:
+                        # Propriétés définies directement dans le bloc allOf
+                        for prop_name, prop_def in bloc['properties'].items():
+                            properties[prop_name] = convert_property(prop_def)
+                            # Si c'est une référence, traite l'objet référencé
+                            if '$ref' in prop_def:
+                                ref_name = prop_def['$ref'].split('/')[-1]
+                                if ref_name in openapi_schemas:
+                                    process_schema(ref_name, openapi_schemas[ref_name], processed)
+                
+                if allof_refs:
+                    properties['allOf_refs'] = allof_refs
+            
+            # Propriétés directes du schéma
+            if 'properties' in schema_def:
+                for prop_name, prop_def in schema_def['properties'].items():
+                    properties[prop_name] = convert_property(prop_def)
+                    # Si c'est une référence, traite l'objet référencé
+                    if '$ref' in prop_def:
+                        ref_name = prop_def['$ref'].split('/')[-1]
+                        if ref_name in openapi_schemas:
+                            process_schema(ref_name, openapi_schemas[ref_name], processed)
+                    # Si c'est un objet imbriqué avec des références
+                    elif prop_def.get('type') == 'object' and 'properties' in prop_def:
+                        for nested_name, nested_def in prop_def['properties'].items():
+                            if '$ref' in nested_def:
+                                nested_ref = nested_def['$ref'].split('/')[-1]
+                                if nested_ref in openapi_schemas:
+                                    process_schema(nested_ref, openapi_schemas[nested_ref], processed)
+                    # Si c'est un tableau avec des références
+                    elif prop_def.get('type') == 'array' and 'items' in prop_def:
+                        items = prop_def['items']
+                        if '$ref' in items:
+                            items_ref = items['$ref'].split('/')[-1]
+                            if items_ref in openapi_schemas:
+                                process_schema(items_ref, openapi_schemas[items_ref], processed)
+            
+            data_model[schema_name] = properties
+        
+        # Traite tous les schémas
+        for schema_name, schema_def in openapi_schemas.items():
+            process_schema(schema_name, schema_def)
+        
+        return data_model
 
-    #     return list(schema["properties"].keys())
-    """
-            expected_data_model_2 = {
-                "Order": {
-                    "id": {"type": "properties"},
-                    "petId": {"type": "properties"},
-                    "quantity": {"type": "properties"},
-                    "shipDate": {"type": "properties"},
-                    "status": {"type": "properties"},
-                    "complete": {"type": "properties"}
-                },
-                "Category": {
-                    "id": {"type": "properties"},
-                    "name": {"type": "properties"}
-                },
-                "User": {
-                    "id": {"type": "properties"},
-                    "username": {"type": "properties"},
-                    "firstName": {"type": "properties"},
-                    "lastName": {"type": "properties"},
-                    "email": {"type": "properties"},
-                    "password": {"type": "properties"},
-                    "phone": {"type": "properties"},
-                    "userStatus": {"type": "properties"}
-                },
-                "Tag": {
-                    "id": {"type": "properties"},
-                    "name": {"type": "properties"}
-                },
-                "Pet": {
-                    "id": {"type": "properties"},
-                    "name": {"type": "properties"},
-                    "category": {"type": "object", "ref": "Category"},
-                    "photoUrls": {"type": "array", "items": {"type": "properties"}},
-                    "tags": {"type": "array", "items": {"type": "object", "ref": "Tag"}},
-                    "status": {"type": "properties"}
-                },
-                "ApiResponse": {
-                    "code": {"type": "properties"},
-                    "type": {"type": "properties"},
-                    "message": {"type": "properties"}
-                },
-                "Error": {
-                    "code": {"type": "properties"},
-                    "message": {"type": "properties"}
-                }
-            }
+    # def get_data_model(self) -> dict:
+    #     return self.spec.get_schema()   
 
-        schema = {
-            'Order': {'type': 'object', 'properties': {'id': {'type': 'integer', 'format': 'int64', 'example': 10}, 'petId': {'type': 'integer', 'format': 'int64', 'example': 198772}, 'quantity': {'type': 'integer', 'format': 'int32', 'example': 7}, 'shipDate': {'type': 'string', 'format': 'date-time'}, 'status': {'type': 'string', 'description': 'Order Status', 'example': 'approved', 'enum': ['placed', 'approved', 'delivered']}, 'complete': {'type': 'boolean'}}, 'xml': {'name': 'order'}}, 'Category': {'type': 'object', 'properties': {'id': {'type': 'integer', 'format': 'int64', 'example': 1}, 'name': {'type': 'string', 'example': 'Dogs'}}, 'xml': {'name': 'category'}}, 'User': {'type': 'object', 'properties': {'id': {'type': 'integer', 'format': 'int64', 'example': 10}, 'username': {'type': 'string', 'example': 'theUser'}, 'firstName': {'type': 'string', 'example': 'John'}, 'lastName': {'type': 'string', 'example': 'James'}, 'email': {'type': 'string', 'example': 'john@email.com'}, 'password': {'type': 'string', 'example': '12345'}, 'phone': {'type': 'string', 'example': '12345'}, 'userStatus': {'type': 'integer', 'description': 'User Status', 'format': 'int32', 'example': 1}}, 'xml': {'name': 'user'}}, 'Tag': {'type': 'object', 'properties': {'id': {'type': 'integer', 'format': 'int64'}, 'name': {'type': 'string'}}, 'xml': {'name': 'tag'}}, 'Pet': {'required': ['name', 'photoUrls'], 'type': 'object', 'properties': {'id': {'type': 'integer', 'format': 'int64', 'example': 10}, 'name': {'type': 'string', 'example': 'doggie'}, 'category': {'$ref': '#/components/schemas/Category'}, 'photoUrls': {'type': 'array', 'xml': {'wrapped': True}, 'items': {'type': 'string', 'xml': {'name': 'photoUrl'}}}, 'tags': {'type': 'array', 'xml': {'wrapped': True}, 'items': {'$ref': '#/components/schemas/Tag'}}, 'status': {'type': 'string', 'description': 'pet status in the store', 'enum': ['available', 'pending', 'sold']}}, 'xml': {'name': 'pet'}}, 'ApiResponse': {'type': 'object', 'properties': {'code': {'type': 'integer', 'format': 'int32'}, 'type': {'type': 'string'}, 'message': {'type': 'string'}}, 'xml': {'name': '##default'}}, 'Error': {'type': 'object', 'properties': {'code': {'type': 'string'}, 'message': {'type': 'string'}}, 'required': ['code', 'message']}
-            }
+    # def get_data_model(self) -> dict:
+    #     expected_model = {}
+    #     input_schema = self.spec.get_schema()
 
-    """
+    #     def resolve_props(obj_name, obj_def, visited=None):
+    #         if visited is None:
+    #             visited = set()
+    #         if obj_name in visited:
+    #             return {}
+    #         visited.add(obj_name)
 
-    def get_data_model(self) -> dict:
-        expected_model = {}
-        input_schema = self.extractor.get_schema()
+    #         props = {}
+    #         # Gestion allOf
+    #         if 'allOf' in obj_def:
+    #             for bloc in obj_def['allOf']:
+    #                 # Propriétés classiques
+    #                 if 'properties' in bloc:
+    #                     for prop_name, prop_def in bloc['properties'].items():
+    #                         props[prop_name] = resolve_prop(prop_def, visited)
+    #                 # Réf directe sur schéma > Héritage
+    #                 if '$ref' in bloc:
+    #                     ref_name = bloc['$ref'].split('/')[-1]
+    #                     ref_obj_def = input_schema.get(ref_name, {})
+    #                     props.update(resolve_props(ref_name, ref_obj_def, visited))
+    #         else:
+    #             for prop_name, prop_def in obj_def.get('properties', {}).items():
+    #                 props[prop_name] = resolve_prop(prop_def, visited)
+    #         return props
+
+        def resolve_prop(prop_def, visited):
+            if '$ref' in prop_def:
+                ref_name = prop_def['$ref'].split('/')[-1]
+                return {"type": "object", "ref": ref_name, "properties": resolve_props(ref_name, input_schema.get(ref_name, {}), visited)}
+            elif prop_def.get('type') == 'array':
+                items = prop_def.get('items', {})
+                if '$ref' in items:
+                    ref_name = items['$ref'].split('/')[-1]
+                    return {"type": "array", "items": {"type": "object", "ref": ref_name, "properties": resolve_props(ref_name, input_schema.get(ref_name, {}), visited)}}
+                else:
+                    return {"type": "array", "items": {"type": items.get("type", "properties")}}
+            else:
+                return {"type": prop_def.get("type", "properties")}
 
         for model_name, model_def in input_schema.items():
-            properties = {}
-
-            # --- Gérer allOf ---
-            if 'allOf' in model_def:
-                # On fusionne toutes les propriétés et références de chaque sous-bloc allOf
-                for bloc in model_def['allOf']:
-                    # Sous-partie avec propriétés classiques
-                    if 'properties' in bloc:
-                        for prop_name, prop_def in bloc['properties'].items():
-                            # Cas 1 : Référence à un autre schéma ($ref)
-                            if '$ref' in prop_def:
-                                ref_path = prop_def['$ref'].split('/')[-1]
-                                properties[prop_name] = {"type": "object", "ref": ref_path}
-                            # Cas 2 : Tableau (array)
-                            elif prop_def.get('type') == 'array':
-                                items = prop_def.get('items', {})
-                                if '$ref' in items:
-                                    ref_path = items['$ref'].split('/')[-1]
-                                    items_type = {"type": "object", "ref": ref_path}
-                                else:
-                                    items_type = {"type": "properties"}
-                                properties[prop_name] = {"type": "array", "items": items_type}
-                            # Cas 3 : Type primitif
-                            else:
-                                properties[prop_name] = {"type": "properties"}
-                    # Sous-partie référence directe à un autre schéma (allOf + $ref)
-                    if '$ref' in bloc:
-                        ref_path = bloc['$ref'].split('/')[-1]
-                        # Propriété spéciale "allOf_ref" (pour tracer la structure composite)
-                        properties.setdefault('allOf_refs', []).append({"type": "object", "ref": ref_path})
-            # --- Fin gestion allOf ---
-
-            # Traitement classique quand il n'y a pas de allOf à ce niveau
-            else:
-                for prop_name, prop_def in model_def.get('properties', {}).items():
-                    if '$ref' in prop_def:
-                        ref_path = prop_def['$ref'].split('/')[-1]
-                        properties[prop_name] = {"type": "object", "ref": ref_path}
-                    elif prop_def.get('type') == 'array':
-                        items = prop_def.get('items', {})
-                        if '$ref' in items:
-                            ref_path = items['$ref'].split('/')[-1]
-                            items_type = {"type": "object", "ref": ref_path}
-                        else:
-                            items_type = {"type": "properties"}
-                        properties[prop_name] = {"type": "array", "items": items_type}
-                    else:
-                        properties[prop_name] = {"type": "properties"}
-
-            expected_model[model_name] = properties
+            expected_model[model_name] = resolve_props(model_name, model_def)
 
         return expected_model
+    
+    # def get_data_model(self) -> dict:
+    #     expected_model = {}
+    #     input_schema = self.extractor.get_schema()
+
+    #     for model_name, model_def in input_schema.items():
+    #         properties = {}
+
+    #         # --- Gérer allOf ---
+    #         if 'allOf' in model_def:
+    #             # On fusionne toutes les propriétés et références de chaque sous-bloc allOf
+    #             for bloc in model_def['allOf']:
+    #                 # Sous-partie avec propriétés classiques
+    #                 if 'properties' in bloc:
+    #                     for prop_name, prop_def in bloc['properties'].items():
+    #                         # Cas 1 : Référence à un autre schéma ($ref)
+    #                         if '$ref' in prop_def:
+    #                             ref_path = prop_def['$ref'].split('/')[-1]
+    #                             properties[prop_name] = {"type": "object", "ref": ref_path}
+    #                         # Cas 2 : Tableau (array)
+    #                         elif prop_def.get('type') == 'array':
+    #                             items = prop_def.get('items', {})
+    #                             if '$ref' in items:
+    #                                 ref_path = items['$ref'].split('/')[-1]
+    #                                 items_type = {"type": "object", "ref": ref_path}
+    #                             else:
+    #                                 items_type = {"type": "properties"}
+    #                             properties[prop_name] = {"type": "array", "items": items_type}
+    #                         # Cas 3 : Type primitif
+    #                         else:
+    #                             properties[prop_name] = {"type": "properties"}
+    #                 # Sous-partie référence directe à un autre schéma (allOf + $ref)
+    #                 if '$ref' in bloc:
+    #                     ref_path = bloc['$ref'].split('/')[-1]
+    #                     # Propriété spéciale "allOf_ref" (pour tracer la structure composite)
+    #                     properties.setdefault('allOf_refs', []).append({"type": "object", "ref": ref_path})
+    #         # --- Fin gestion allOf ---
+
+    #         # Traitement classique quand il n'y a pas de allOf à ce niveau
+    #         else:
+    #             for prop_name, prop_def in model_def.get('properties', {}).items():
+    #                 if '$ref' in prop_def:
+    #                     ref_path = prop_def['$ref'].split('/')[-1]
+    #                     properties[prop_name] = {"type": "object", "ref": ref_path}
+    #                 elif prop_def.get('type') == 'array':
+    #                     items = prop_def.get('items', {})
+    #                     if '$ref' in items:
+    #                         ref_path = items['$ref'].split('/')[-1]
+    #                         items_type = {"type": "object", "ref": ref_path}
+    #                     else:
+    #                         items_type = {"type": "properties"}
+    #                     properties[prop_name] = {"type": "array", "items": items_type}
+    #                 else:
+    #                     properties[prop_name] = {"type": "properties"}
+
+    #         expected_model[model_name] = properties
+
+    #     return expected_model
 
     def get_responses_data_model(self) -> dict:
         # print('ICICICICICICICICICICIIC')
         # print(self.extractor.get_responses())
-        return self.extractor.get_responses()
+        return self.spec.get_responses()
 
     def get_content_objects_per_fp(self):
         # Getting all $ref recursilvely from path
-        paths = self.extractor.get_paths()
+        paths = self.spec.get_paths()
         result = {}
 
         if paths is None:
@@ -195,7 +291,7 @@ class DataGroupExtractor():
         """
         counter = 0
         if data is None:
-            data = self.extractor.get_paths()
+            data = self.spec.get_paths()
         
 
         if result is None:
@@ -240,7 +336,7 @@ class DataGroupExtractor():
         return result
     
     def get_request_body(self, data_model) -> dict:
-        paths = self.extractor.get_paths()
+        paths = self.spec.get_paths()
         result = {}
 
         if paths is None:
@@ -319,7 +415,7 @@ class DataGroupExtractor():
         return sorted(nested)
 
     def get_responses(self) -> dict:
-        paths = self.extractor.get_paths()
+        paths = self.spec.get_paths()
         # print(paths)
         # component_responses = self.extractor.get_responses()
         responses = {}

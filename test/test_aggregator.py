@@ -147,19 +147,15 @@ class Test_Aggregator(unittest.TestCase):
         self.extractor = ext.Extractor(self.spec_path)
         schema = self.extractor.get_schema()
         self.dge = dge.DataGroupExtractor(self.extractor)
-        data_model = self.dge.get_data_model()
+        data_model = self.dge.get_data_model(schema)
         response_data_model = self.dge.get_responses_data_model()
         parameters = self.dge.get_parameters()
         request_body = self.dge.get_request_body(data_model)
-        http_status_codes = self.dge.get_http_status_codes()
-        content_objects_per_fp = self.dge.get_content_objects_per_fp()
         responses = self.dge.get_responses()
         dgi = DataGroupIdentifier()
         request_body_datagroups = dgi.get_request_body_datagroups(request_body)
         parameters_datagroups = dgi.get_parameters_datagroups(data_model, parameters, request_body)
-        http_status_datagroups = dgi.get_http_status_datagroups(http_status_codes)
         responses_datagroups = dgi.get_responses_datagroups(responses, data_model, response_data_model)
-        datagroups_per_pf = dgi.identify_datagroups_per_fp(data_model) # À vérifier, louche
         self.mti = MovementTypeIdentifier()
         self.hve = hve.HTTPVerbExtractor()
         http_verbs = self.hve.get_http_verbs(self.extractor)
@@ -184,17 +180,16 @@ class Test_Aggregator(unittest.TestCase):
     def test_instantiate_aggregator(self):
         fe = FakeExtractor('./test/testdata/swagger_pet_store.yml')
         ffpc = FakeFunctionPointsCalculator()
+        schema = fe.get_schema()
         dge = DataGroupExtractor(fe)
-        data_model = dge.get_data_model()
+        data_model = dge.get_data_model(schema)
         response_data_model = dge.get_responses_data_model()
         parameters = dge.get_parameters()
         request_body = dge.get_request_body(data_model)
         dgi = DataGroupIdentifier()
         request_body_datagroups = dgi.get_request_body_datagroups(request_body)
         parameters_datagroups = dgi.get_parameters_datagroups(data_model, parameters, request_body)
-        http_status_datagroups = dgi.get_http_status_datagroups(dge.get_http_status_codes())
         responses_datagroups = dgi.get_responses_datagroups(dge.get_responses(), data_model, response_data_model)
-        datagroups_per_pf = dgi.identify_datagroups_per_fp(data_model)
         hvee = hve.HTTPVerbExtractor
         http_verbs = hvee.get_http_verbs(hvee, fe)
         mti = MovementTypeIdentifier()
@@ -204,25 +199,22 @@ class Test_Aggregator(unittest.TestCase):
         exits = mti.identify_exits(self.mti, responses_datagroups)
         movement_types = mti.get_movement_types(entries, reads, writes, exits)
         ci = CRUDIdentifier
-        crud_operations = ci.identify_crud_operations(ci, http_verbs)
-        rg = ReportGenerator()
 
-        api_context = APIContext(ffpc, crud_operations, entries, reads, writes, exits, rg)
+
         self.ag.aggregate_new_specification()
 
     def test_aggregate_fp_description_aggregator(self):
         fe = FakeExtractor('./test/testdata/swagger_pet_store.yml')
         ffpc = FakeFunctionPointsCalculator()
         dge = DataGroupExtractor(fe)
-        data_model = dge.get_data_model()
+        data_model = dge.get_data_model(fe.get_schema())
         response_data_model = dge.get_responses_data_model()
         parameters = dge.get_parameters()
         request_body = dge.get_request_body(data_model)
         dgi = DataGroupIdentifier
         request_body_datagroups = dgi.get_request_body_datagroups(dgi, request_body)
         parameters_datagroups = dgi.get_parameters_datagroups(dgi, data_model, parameters, request_body)
-        http_status_datagroups = dgi.get_http_status_datagroups(dgi, dge.get_http_status_codes())
-        responses_datagroups = dgi.get_responses_datagroups(dgi, dge.get_responses(), data_model, response_data_model)
+        responses_datagroups = dgi.get_responses_datagroups(dge.get_responses(), data_model, response_data_model)
         mti = MovementTypeIdentifier()
         hvee = hve.HTTPVerbExtractor
         http_verbs = hvee.get_http_verbs(hvee, fe)
@@ -242,18 +234,17 @@ class Test_Aggregator(unittest.TestCase):
         ffpc = FakeFunctionPointsCalculator()
         dge = DataGroupExtractor(fe)
         dgi = DataGroupIdentifier
-        request_body = dge.get_request_body(dge.get_data_model())
+        request_body = dge.get_request_body(dge.get_data_model(fe.get_schema()))
         mti = MovementTypeIdentifier()
         hvee = hve.HTTPVerbExtractor
         http_verbs = hvee.get_http_verbs(hvee, fe)
         ci = CRUDIdentifier
-        entries = mti.identify_entries(dgi.get_request_body_datagroups(dgi, request_body), dgi.get_parameters_datagroups(dgi, dge.get_data_model(), dge.get_parameters(), dge.get_data_model()), dge.get_data_model())
-        reads = mti.identify_reads(dgi.get_parameters_datagroups(dgi, dge.get_data_model(), dge.get_parameters(), dge.get_data_model()))
-        writes = mti.identify_writes(dgi.get_http_status_datagroups(dgi, dgi.get_parameters_datagroups(dgi, dge.get_data_model(), dge.get_parameters(), request_body)))
-        exits = mti.identify_exits(mti, dgi.get_responses_datagroups(dgi, dge.get_responses(), dge.get_data_model(), dge.get_responses_data_model()))
+        entries = mti.identify_entries(dgi.get_request_body_datagroups(dgi, request_body), dgi.get_parameters_datagroups(dgi, dge.get_data_model(fe.get_schema()), dge.get_parameters(), dge.get_data_model(fe.get_schema())), dge.get_data_model(fe.get_schema()))
+        reads = mti.identify_reads(dgi.get_parameters_datagroups(dgi, dge.get_data_model(fe.get_schema()), dge.get_parameters(), dge.get_data_model(fe.get_schema())))
+        writes = mti.identify_writes(dgi.get_http_status_datagroups(dgi, dgi.get_parameters_datagroups(dgi, dge.get_data_model(fe.get_schema()), dge.get_parameters(), request_body)))
+        exits = mti.identify_exits(mti, dgi.get_responses_datagroups(dge.get_responses(), dge.get_data_model(fe.get_schema()), dge.get_responses_data_model()))
         crud_operations = ci.identify_crud_operations(ci, http_verbs)
         rg = ReportGenerator()
-        api_context = APIContext(ffpc, crud_operations, entries, reads, writes, exits, rg)
         self.ag.aggregate_new_specification()
         self.ag.aggregate_fp_description()
 

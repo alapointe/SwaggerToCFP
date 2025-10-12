@@ -81,6 +81,7 @@ class Extractor():
         """"
             Swagger 2.0 : Schema doesn't exist, should return definition
         """
+        # print('Schema')
         # print(self.spec['components']['schemas'])
         return self.spec['components']['schemas']
 
@@ -93,8 +94,6 @@ class Extractor():
         else:
             logging.info("La clé 'responses' n'existe pas dans 'components'")
             return {}
-        # print(self.spec.get('components', {}).get('responses', {}))
-        # return self.spec.get('components', {}).get('responses', {})
     
     def get_request_body(openapi_dict, path='/pet', method='put'):
         """

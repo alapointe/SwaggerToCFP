@@ -1,4 +1,3 @@
-
 import logging
 import os
 import argparse
@@ -49,16 +48,16 @@ def main():
         logger.info("Sizing " + spec)
         ext = extractor.Extractor(spec)
         dge = dataGroupExtractor.DataGroupExtractor(ext)
-        data_model = dge.get_data_model()
-        responses = dge.get_responses() #OK
+        schema = ext.get_schema()
+        data_model = dge.get_data_model(schema)
+        responses = dge.get_responses() # Ici ne retourne toujours pas les groupes imbriqués dans les réponses
         response_data_model = dge.get_responses_data_model()
         parameters = dge.get_parameters()
-        request_body = dge.get_request_body(data_model)
-        http_status_codes = dge.get_http_status_codes()
+        request_body = dge.get_request_body(data_model) # Ici on retourne les groupes imbriqués dans le request_body
         dgi = DataGroupIdentifier
-        request_body_datagroups = dgi.get_request_body_datagroups(dgi, request_body)
+        request_body_datagroups = dgi.get_request_body_datagroups(dgi, request_body) # Ici on retourne les groupes imbriqués dans le request_body
         parameters_datagroups = dgi.get_parameters_datagroups(dgi, data_model, parameters, request_body)
-        responses_datagroups = dgi.get_responses_datagroups(dgi, responses, data_model, response_data_model)
+        responses_datagroups = dgi.get_responses_datagroups(responses, data_model, response_data_model) # Ici ne retourne toujours pas les groupes imbriqués dans les réponses
         mti = movementTypeIdentifier.MovementTypeIdentifier()
         hve = HTTPVerbExtractor.HTTPVerbExtractor
         http_verbs = hve.get_http_verbs(hve, ext)
