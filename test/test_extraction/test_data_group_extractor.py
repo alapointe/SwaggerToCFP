@@ -11,14 +11,7 @@ class Test_DataGroupExtractor(CalculationSpecificationFileTest):
     def setUp(self) -> None:
         self.extractor = extractor.Extractor('./test/testdata/swagger_pet_store.yml') #Extractor()
         self.dge = dge.DataGroupExtractor(self.extractor)        
-        self.extractor_2 = extractor.Extractor('./test/testdata/SocioDemoPartConverted.yml') #Extractor()
-        self.dge_2 = dge.DataGroupExtractor(self.extractor_2)
-        self.extractor_3 = extractor.Extractor('./test/testdata/RevisionDossierMembreClient.yml') #Extractor()
-        self.dge_3= dge.DataGroupExtractor(self.extractor_3)
-        self.extractor_4 = extractor.Extractor('./test/testdata/Projets.yml') #Extractor()
-        self.dge_4 = dge.DataGroupExtractor(self.extractor_4)
-        self.extractor_5 = extractor.Extractor('./test/testdata/SocioDemoPartConverted.yml') #Extractor()
-        self.dge_5 = dge.DataGroupExtractor(self.extractor_5)
+
         return super().setUp()
 
     def test_get_parameters(self):
