@@ -1,4 +1,5 @@
 from src.basic_definitions.data import DataMovementType, ErreurREST
+from utils import logger
 
 class MovementTypeIdentifier():
 
@@ -93,7 +94,7 @@ class MovementTypeIdentifier():
             if isinstance(datagroups, dict):
                 for key, value in datagroups.items():
                     if self.param_in_properties(datagroups[key], data_model):
-                        print('Not dict')
+                        logger.info("Not a dict")
                     entries.update({fpid : {DataMovementType.ENTRY : datagroups[key]}})
 
         
