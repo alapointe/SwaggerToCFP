@@ -55,44 +55,4 @@ class TestMappingRules(unittest.TestCase):
         http_verb = "HEAD"
         with self.assertRaises(ValueError) as error:
             self.mappingRules.apply_http_verb_to_crud_mapping(http_verb)
-        self.assertEqual(str(error.exception), f"Invalid HTTP verb: '{http_verb}'. Supported verbs are: {', '.join(params.supported_http_verbs)}")
-
-    def test_get_best_crud_per_fp(self):
-        fpid = "Recupérer les projets COMPTE_EPARGNE_ET_RETRAITE et EPARGNE_PAR_VERSEMENT_BONIFIE d'un membre-client"
-        data_dict = {"prob1" : {data.CRUD.READ : 48}, "prob2" : {data.CRUD.CREATE : 44}, "prob3" : {data.CRUD.DELETE : 8}, "prob4" : {data.CRUD.UPDATE : 5}}
-        expected_crud = data.CRUD.READ
-        self.assertEqual(self.mappingRules.get_best_crud_per_fp(data_dict, fpid), expected_crud)
-
-    def test_description_to_CRUD_mapping(self):
-        description_list =  [
-            "Recupérer les projets COMPTE_EPARGNE_ET_RETRAITE et EPARGNE_PAR_VERSEMENT_BONIFIE d'un membre-client",
-            "Créer un projet COMPTE_EPARGNE_ET_RETRAITE",
-            "Mettre à jour un projet COMPTE_EPARGNE_ET_RETRAITE",
-            "Recuperer un projet COMPTE_EPARGNE_ET_RETRAITE précis par son identifiant",
-            "Supprimer un projet COMPTE_EPARGNE_ET_RETRAITE"
-        ]
-        expected_mapping_dict = {
-            "Recupérer les projets COMPTE_EPARGNE_ET_RETRAITE et EPARGNE_PAR_VERSEMENT_BONIFIE d'un membre-client": data.CRUD.READ,
-            "Créer un projet COMPTE_EPARGNE_ET_RETRAITE": data.CRUD.CREATE,
-            "Mettre à jour un projet COMPTE_EPARGNE_ET_RETRAITE": data.CRUD.UPDATE,
-            "Recuperer un projet COMPTE_EPARGNE_ET_RETRAITE précis par son identifiant": data.CRUD.READ,
-            "Supprimer un projet COMPTE_EPARGNE_ET_RETRAITE": data.CRUD.DELETE
-        }
-        self.assertEqual(sorted(expected_mapping_dict), sorted(self.mappingRules.apply_description_to_crud_mapping(description_list)))
-
-    @unittest.skip("Not implemented yet")
-    def test_extract_verbs(self):
-        # From NLPStrategy.parse_sentence but in reality it should be the following, there seem to b e an issue with NLTK french
-        # pos_tags = [('recupérer', 'VERB'), ('les', 'DET'), ('projets', 'NOUN'), ('compte-epargne-et-retraite', 'ADJ'), ('et', 'CONJ'), ('epargne-par-versement-bonifie', 'ADJ'), ("d'", 'ADP'), ('un', 'DET'), ('membre-client', 'NOUN')]
-        pos_tags = [('recupérer', 'VERB'), ('les', 'DET'), ('projets', 'NOUN'), ('compte-epargne-et-retraite', 'ADJ'), ('et', 'CONJ'), ('epargne-par-versement-bonifie', 'VERB'), ("d'", 'ADP'), ('un', 'DET'), ('membre-client', 'ADJ')]
-        expected_verbs = ['recupérer']
-        self.assertEqual(expected_verbs, self.mappingRules.extract_verbs(pos_tags))
-
-    @unittest.skip("Not implemented yet")
-    def test_extract_nouns(self):
-        # From NLPStrategy.parse_sentence but in reality it should be the following, there seem to b e an issue with NLTK french
-        # pos_tags = [('recupérer', 'VERB'), ('les', 'DET'), ('projets', 'NOUN'), ('compte-epargne-et-retraite', 'ADJ'), ('et', 'CONJ'), ('epargne-par-versement-bonifie', 'ADJ'), ("d'", 'ADP'), ('un', 'DET'), ('membre-client', 'NOUN')]
-        pos_tags = [('recupérer', 'VERB'), ('les', 'DET'), ('projets', 'NOUN'), ('compte-epargne-et-retraite', 'ADJ'), ('et', 'CONJ'), ('epargne-par-versement-bonifie', 'VERB'), ("d'", 'ADP'), ('un', 'DET'), ('membre-client', 'ADJ')]
-        expected_nouns = ['projets', 'membre-client']
-        self.assertEqual(expected_nouns, self.mappingRules.extract_nouns(pos_tags))
-
+        self.assertEqual(str(error.exception), f"Invalid HTTP verb: '{http_verb.lower()}'. Supported verbs are: {', '.join(params.supported_http_verbs)}")

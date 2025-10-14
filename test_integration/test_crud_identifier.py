@@ -21,5 +21,5 @@ class Test_CrudOperation(unittest.TestCase):
             'Update an existing pet.' : {'Update an existing pet.' : "PUT"}, 'Add a new pet to the store.' : {'Add a new pet to the store.' : "POST"}, "Finds Pets by status." : {"Finds Pets by status." : "PUT"}
             }
         fpid = 'Update an existing pet.'
-        crud_operation = data.CRUD.READ
+        crud_operation = data.CRUD.UPDATE
         self.assertEqual(crud_operation , self.crud_op.identify_crud_operation_per_fp(http_verbs, fpid))
